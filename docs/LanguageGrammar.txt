@@ -1,0 +1,438 @@
+================================================================================
+  RFLang — Formal Language Grammar Specification
+  CS4031 Compiler Construction | Assignment 01 | Spring 2026
+  Abdul Raffay (23i-0587) & Ibrahim Azad (23i-3049)
+================================================================================
+
+This file defines the formal grammar of RFLang at the LEXICAL level.
+It specifies all token patterns using regular expressions, describes the
+token categories, and documents the rules for the lexical analyzer.
+
+NOTE: This is a LEXICAL grammar (for the scanner/lexer), not a full
+context-free grammar (which would be used by a parser in a later phase).
+
+================================================================================
+  SECTION 1: ALPHABET
+================================================================================
+
+The input alphabet Σ consists of printable ASCII characters plus whitespace:
+
+  Letters (uppercase):   A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
+  Letters (lowercase):   a b c d e f g h i j k l m n o p q r s t u v w x y z
+  Digits:                0 1 2 3 4 5 6 7 8 9
+  Whitespace:            SPACE (0x20)  TAB (0x09)  CR (0x0D)  LF (0x0A)
+  Special characters:    ! " # $ % & ' ( ) * + , - . / : ; < = > ? @ [ \ ] ^
+                         _ ` { | } ~
+
+Valid characters in RFLang tokens are a subset of the full ASCII alphabet.
+Any character not covered by a token pattern is a lexical error.
+
+================================================================================
+  SECTION 2: REGULAR EXPRESSION DEFINITIONS
+================================================================================
+
+  Notation used:
+    [abc]     character class — matches a, b, or c
+    [a-z]     character range — matches any lowercase letter
+    [^abc]    negated class  — matches any char except a, b, c
+    x*        zero or more occurrences of x
+    x+        one or more occurrences of x
+    x?        zero or one occurrence of x
+    x{n}      exactly n occurrences of x
+    x{n,m}    between n and m occurrences of x
+    xy        concatenation of x and y
+    x|y       alternation — x or y
+    (x)       grouping
+    "x"       literal string x (escape characters taken literally)
+
+--------------------------------------------------------------------------------
+  2.1  WHITESPACE
+--------------------------------------------------------------------------------
+
+  WHITESPACE  =  [ \t\r\n]+
+
+  Whitespace is recognised and skipped by the scanner.
+  Line and column counters are updated as whitespace is consumed.
+  Whitespace is NOT emitted as a token.
+
+--------------------------------------------------------------------------------
+  2.2  KEYWORDS
+--------------------------------------------------------------------------------
+
+  KEYWORD  =  start | finish | loop | condition | declare | output
+            | input | function | return | break | continue | else
+
+  All keywords are:
+    - Lowercase only (case-sensitive)
+    - Exact match required (no partial matching)
+    - Reserved — may not be used as identifiers
+
+  Complete keyword list:
+    start      — program block start
+    finish     — program block end
+    loop       — iteration construct
+    condition  — conditional construct
+    declare    — variable declaration
+    output     — print/output statement
+    input      — read user input
+    function   — function definition
+    return     — return value from function
+    break      — exit loop
+    continue   — next loop iteration
+    else       — alternate conditional branch
+
+--------------------------------------------------------------------------------
+  2.3  IDENTIFIERS
+--------------------------------------------------------------------------------
+
+  IDENTIFIER  =  [A-Z][a-z0-9_]{0,30}
+
+  Rules:
+    - Must begin with exactly one uppercase letter (A-Z)
+    - Followed by 0 to 30 characters from: lowercase letters, digits, underscore
+    - Maximum total length: 31 characters
+    - Cannot be a keyword or boolean literal (disjoint sets by first character)
+
+  Valid examples:
+    Count           X               Total_sum_2024
+    Variable_name   Hello_world_123 A
+
+  Invalid examples:
+    count           (lowercase start — would be KEYWORD check or ERROR)
+    2Count          (starts with digit)
+    myVariable      (starts with lowercase)
+    Abcdefghijklmnopqrstuvwxyz01234  (32 characters — too long)
+
+  Implementation note:
+    The {0,30} quantifier is enforced by a length counter in the scanner code.
+    The DFA models [A-Z][a-z0-9_]* and the scanner checks length <= 31.
+
+--------------------------------------------------------------------------------
+  2.4  INTEGER LITERALS
+--------------------------------------------------------------------------------
+
+  INTEGER_LITERAL  =  [0-9]+
+
+  Rules:
+    - One or more decimal digits
+    - No leading zeros required or forbidden
+    - No commas or other separators
+    - Signs (+ and -) are tokenized as separate ARITHMETIC_OPERATOR tokens
+
+  Valid examples:    0   1   42   100   999999
+  Invalid examples:  12.34 (float)   1,000 (comma)
+
+--------------------------------------------------------------------------------
+  2.5  FLOATING-POINT LITERALS
+--------------------------------------------------------------------------------
+
+  FLOAT_LITERAL  =  [0-9]+\.[0-9]{1,6}([eE][+-]?[0-9]+)?
+
+  Components:
+    INTEGER_PART   =  [0-9]+
+    DOT            =  \.
+    DECIMAL_PART   =  [0-9]{1,6}        (1 to 6 decimal digits — mandatory)
+    EXPONENT_PART  =  ([eE][+-]?[0-9]+) (optional)
+
+  Rules:
+    - Integer part is mandatory (no leading dot)
+    - Decimal point is mandatory
+    - Decimal digits: minimum 1, maximum 6
+    - Exponent marker: e or E (case-insensitive)
+    - Exponent sign: + or - (optional)
+    - Exponent digits: one or more
+
+  Valid examples:
+    3.14          0.5           99.9
+    0.123456      1.5e10        2.0E-3
+    99.9e+5       9.999999E-99
+
+  Invalid examples:
+    3.            (no decimal digits)
+    .14           (no integer part)
+    1.2345678     (7 decimal digits — exceeds maximum of 6)
+    1e5           (no decimal point)
+
+--------------------------------------------------------------------------------
+  2.6  STRING LITERALS
+--------------------------------------------------------------------------------
+
+  STRING_LITERAL  =  "([^"\\\n] | \\["\\ntr])*"
+
+  Components:
+    OPENING_QUOTE   =  "
+    STRING_BODY     =  (REGULAR_CHAR | ESCAPE_SEQUENCE)*
+    REGULAR_CHAR    =  any character except " \ and newline
+    ESCAPE_SEQUENCE =  \\ | \" | \n | \t | \r
+    CLOSING_QUOTE   =  "
+
+  Valid escape sequences:
+    \"    double quote
+    \\    backslash
+    \n    newline
+    \t    horizontal tab
+    \r    carriage return
+
+  Valid examples:
+    "hello world"
+    ""                   (empty string)
+    "escaped \"quote\""
+    "line\nbreak"
+    "tab\there"
+
+  Error conditions:
+    - String not closed before end of line  → UNTERMINATED_STRING error
+    - Invalid escape sequence (e.g. \q)     → INVALID_ESCAPE error
+
+--------------------------------------------------------------------------------
+  2.7  CHARACTER LITERALS
+--------------------------------------------------------------------------------
+
+  CHAR_LITERAL  =  '([^'\\\n] | \\['\\ntr])'
+
+  Components:
+    OPENING_QUOTE   =  '
+    CHAR_BODY       =  REGULAR_CHAR | ESCAPE_SEQUENCE   (exactly one)
+    REGULAR_CHAR    =  any character except ' \ and newline
+    ESCAPE_SEQUENCE =  \\ | \' | \n | \t | \r
+    CLOSING_QUOTE   =  '
+
+  Valid escape sequences:
+    \'    single quote
+    \\    backslash
+    \n    newline
+    \t    horizontal tab
+    \r    carriage return
+
+  Valid examples:    'a'   'Z'   '5'   '\n'   '\t'   '\\'   '\''
+
+  Error conditions:
+    ''     (empty)                          → EMPTY_CHAR error
+    'ab'   (more than one character)        → MULTI_CHAR_LITERAL error
+    'abc'  (more than one character)        → MULTI_CHAR_LITERAL error
+    'a     (no closing quote)               → UNTERMINATED_CHAR error
+
+--------------------------------------------------------------------------------
+  2.8  BOOLEAN LITERALS
+--------------------------------------------------------------------------------
+
+  BOOLEAN_LITERAL  =  true | false
+
+  Rules:
+    - Case-sensitive exact match
+    - No overlap with identifiers (which must start with uppercase)
+    - No overlap with keywords (different lexemes)
+
+  Valid:    true    false
+  Invalid:  True    False    TRUE    FALSE
+
+--------------------------------------------------------------------------------
+  2.9  OPERATORS
+--------------------------------------------------------------------------------
+
+  2.9.1  Arithmetic Operators
+  -----------------------------------------------
+  ARITHMETIC_OPERATOR  =  ** | + | - | * | / | %
+
+    +     addition
+    -     subtraction
+    *     multiplication
+    /     division
+    %     modulo
+    **    exponentiation (two characters — matched before single *)
+
+  2.9.2  Relational Operators
+  -----------------------------------------------
+  RELATIONAL_OPERATOR  =  == | != | <= | >= | < | >
+
+    ==    equal to
+    !=    not equal to
+    <=    less than or equal to
+    >=    greater than or equal to
+    <     less than
+    >     greater than
+
+  2.9.3  Logical Operators
+  -----------------------------------------------
+  LOGICAL_OPERATOR  =  && | || | !
+
+    &&    logical AND  (two characters)
+    ||    logical OR   (two characters)
+    !     logical NOT  (one character)
+
+  Note: Single & or single | are lexical errors.
+
+  2.9.4  Assignment Operators
+  -----------------------------------------------
+  ASSIGNMENT_OPERATOR  =  += | -= | *= | /= | =
+
+    =     simple assignment
+    +=    add and assign
+    -=    subtract and assign
+    *=    multiply and assign
+    /=    divide and assign
+
+  2.9.5  Increment / Decrement Operators
+  -----------------------------------------------
+  INC_DEC_OPERATOR  =  ++ | --
+
+    ++    increment by 1
+    --    decrement by 1
+
+  Longest-match rule ensures ++ is matched before two separate + operators.
+
+--------------------------------------------------------------------------------
+  2.10  PUNCTUATORS
+--------------------------------------------------------------------------------
+
+  PUNCTUATOR  =  ( | ) | { | } | [ | ] | , | ; | :
+
+    (     left parenthesis
+    )     right parenthesis
+    {     left brace
+    }     right brace
+    [     left bracket
+    ]     right bracket
+    ,     comma
+    ;     semicolon
+    :     colon
+
+--------------------------------------------------------------------------------
+  2.11  COMMENTS
+--------------------------------------------------------------------------------
+
+  SINGLE_LINE_COMMENT  =  ##[^\n]*
+
+    - Begins with ##  (two hash characters)
+    - Extends to end of line (newline not included in token)
+    - Empty comment ## (nothing after) is valid
+
+  MULTI_LINE_COMMENT  =  #*([^*] | \*+[^*#])* \*+#
+
+    - Begins with #*
+    - Ends with *#
+    - May span multiple lines
+    - Non-nested only
+
+  Error condition:
+    - Single # not followed by # or *  → INVALID_CHARACTER error
+    - #* not closed with *#             → UNCLOSED_COMMENT error
+
+================================================================================
+  SECTION 3: PATTERN MATCHING PRIORITY
+================================================================================
+
+When multiple patterns could match the same input, the scanner applies the
+following priority order (from Section 3.12 of the assignment specification):
+
+  Priority  Token Category                  Reason for Priority
+  --------  --------------                  -------------------
+     1      Multi-line comment  (#*...*#)   Must consume entire block
+     2      Single-line comment (##...)     Must consume before # is an error
+     3      Multi-char operators            Longest match (++ before +, etc.)
+     4      Keywords                        Exact match before identifier check
+     5      Boolean literals                Exact match (true, false)
+     6      Identifiers                     After keyword/boolean checks
+     7      Floating-point literals         Decimal point check before integer
+     8      Integer literals                Fallback for digit sequences
+     9      String / char literals          Quote-delimited
+    10      Single-char operators           After multi-char operators checked
+    11      Punctuators                     Single symbols
+    12      Whitespace                      Skipped last
+
+  Disambiguation rules:
+    - ++ is matched before + + (two tokens) by the longest-match principle
+    - ** is matched before * * by the longest-match principle
+    - Keywords and booleans are identified from lowercase word matches —
+      the scanner reads the full word [a-z]+ then classifies it
+    - true/false cannot conflict with identifiers (booleans start lowercase,
+      identifiers must start uppercase — mutually exclusive by first character)
+    - Float literals are attempted before integer literals for inputs like
+      3.14 — the scanner reads digits, sees '.', continues to float DFA path
+
+================================================================================
+  SECTION 4: TOKEN TYPE SUMMARY
+================================================================================
+
+  Token Type              Category        Count of Patterns
+  ----------              --------        -----------------
+  KEYWORD                 Literal         12 keywords
+  IDENTIFIER              Pattern         [A-Z][a-z0-9_]{0,30}
+  INTEGER_LITERAL         Pattern         [0-9]+
+  FLOAT_LITERAL           Pattern         [0-9]+\.[0-9]{1,6}([eE][+-]?[0-9]+)?
+  STRING_LITERAL          Pattern         "([^"\\\n]|\\["\\ntr])*"
+  CHAR_LITERAL            Pattern         '([^'\\\n]|\\['\\ntr])'
+  BOOLEAN_LITERAL         Literal         true | false
+  ARITHMETIC_OPERATOR     Literal         + - * / % **
+  RELATIONAL_OPERATOR     Literal         == != < > <= >=
+  LOGICAL_OPERATOR        Literal         && || !
+  ASSIGNMENT_OPERATOR     Literal         = += -= *= /=
+  INC_DEC_OPERATOR        Literal         ++ --
+  PUNCTUATOR              Literal         ( ) { } [ ] , ; :
+  SINGLE_LINE_COMMENT     Pattern         ##[^\n]*
+  MULTI_LINE_COMMENT      Pattern         #*([^*]|\*+[^*#])*\*+#
+  ERROR                   Special         Invalid / unrecognized input
+  EOF                     Special         End of input stream
+
+  Total token types: 17
+
+================================================================================
+  SECTION 5: LEXICAL ERROR TYPES
+================================================================================
+
+  Error Type            Trigger Condition
+  ----------            -----------------
+  INVALID_CHARACTER     Character not in any valid token pattern (e.g. @ $ ~ `)
+  INVALID_IDENTIFIER    Lowercase word that is not a keyword or boolean literal;
+                        OR identifier longer than 31 characters
+  MALFORMED_FLOAT       Float literal with more than 6 decimal digits
+  UNTERMINATED_STRING   String literal with no closing " before end of line
+  UNTERMINATED_CHAR     Character literal with no closing ' before end of line
+  EMPTY_CHAR            Character literal with no content: ''
+  MULTI_CHAR_LITERAL    Character literal containing more than one character
+  UNCLOSED_COMMENT      Multi-line comment opened with #* but no closing *#
+  INVALID_ESCAPE        Invalid escape sequence inside string or char literal
+  INVALID_CHARACTER     Single & (use &&) or single | (use ||)
+  INVALID_CHARACTER     Lone # not followed by # or *
+
+  Error reporting format:
+    [ERROR] Type: <TYPE>, Line: <n>, Col: <m>, Lexeme: "<text>", Reason: <msg>
+
+  Error recovery strategy:
+    After detecting an error, the scanner skips the offending character(s)
+    and resumes scanning at the next valid token start position.
+    All errors are collected and reported together at the end of the scan.
+
+================================================================================
+  SECTION 6: AUTOMATA SUMMARY (7 TOKEN TYPES)
+================================================================================
+
+  The following 7 token types were selected for formal NFA/DFA design
+  (see Automata_Design.pdf for full diagrams and transition tables):
+
+  #   Token Type              Regex                           NFA States  DFA States
+  -   ----------              -----                           ----------  ----------
+  1   Integer Literal         [0-9]+                          3           3
+  2   Floating-Point Literal  [0-9]+\.[0-9]{1,6}(exp)?       13          13
+  3   Identifier              [A-Z][a-z0-9_]*                 2           2
+  4   Single-line Comment     ##[^\n]*                        3           3
+  5   Boolean Literal         true|false                      10          10
+  6   Punctuators             [(){}[\],;:]                    2           2
+  7   Inc/Dec Operators       \+\+|--                         5           5
+
+  Combined NFA:   39 states (38 individual + 1 new start state S)
+  Combined DFA:   30 states (before minimization)
+  Minimized DFA:  28 states (after merging J≡K and U≡AA)
+
+  Minimized DFA accepting states:
+    D  (INT)        E  (ID)         I  (PUNCT)
+    JK (INCDEC)     O  (COMMENT)    UAA (BOOL)
+    P, S, W, AB, AC, AD, Y  (FLOAT — 7 states)
+
+================================================================================
+
+  End of RFLang Language Grammar Specification
+  CS4031 Compiler Construction — Assignment 01 — Spring 2026
+  Abdul Raffay (23i-0587) & Ibrahim Azad (23i-3049)
+
+================================================================================

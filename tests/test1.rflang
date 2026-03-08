@@ -1,0 +1,40 @@
+## Test 1: All Valid Tokens
+## Tests every token type our scanner recognizes
+
+## Integer literals
+42
++100
+-567
+0
++0
+-0
+
+## Floating-point literals
+3.14
++2.5
+-0.123456
+1.5e10
+2.0E-3
+99.9e+5
++0.1e+1
+-9.999999E-99
+
+## Identifiers
+Count
+Variable_name
+X
+Total_sum_2024
+A
+Z
+Hello_world_123
+
+## Boolean literals
+true
+false
+
+## Punctuators
+( ) { } [ ] , ; :
+
+## Inc/Dec operators
+++
+--

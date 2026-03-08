@@ -1,0 +1,30 @@
+## Test 5: Comments
+## Tests single-line comment handling
+
+## Empty comment (just ##)
+##
+
+## Comment with numbers
+## 12345 67890
+
+## Comment with punctuators
+## ( ) { } [ ] , ; :
+
+## Comment with operators
+## ++ -- + - * /
+
+## Comment with booleans and identifiers
+## true false Count Variable_name
+
+## Inline comments after valid tokens
+42 ## inline after integer
++100 ## inline after signed integer
+3.14 ## inline after float
+true ## inline after boolean
+false ## inline after boolean
+Count ## inline after identifier
+++ ## inline after increment
+( ## inline after punctuator
+
+## Comment at end of file with no newline
+## this is the last line

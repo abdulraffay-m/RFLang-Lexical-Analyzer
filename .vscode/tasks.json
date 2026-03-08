@@ -1,0 +1,47 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run JFlex",
+      "type": "shell",
+      "command": "java",
+      "args": [
+        "-jar",
+        "C:\\jflex-1.9.1\\lib\\jflex-full-1.9.1.jar",
+        "${workspaceFolder}\\src\\Scanner.flex"
+      ],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Compile Java",
+      "type": "shell",
+      "command": "javac",
+      "args": [
+        "-d",
+        "${workspaceFolder}\\src",
+        "${workspaceFolder}\\src\\*.java"
+      ],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": "$javac"
+    },
+    {
+      "label": "JFlex then Compile",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Run JFlex", "Compile Java"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}

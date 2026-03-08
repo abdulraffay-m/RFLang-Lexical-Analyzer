@@ -1,0 +1,40 @@
+## Test 4: Lexical Errors
+## Tests error detection, reporting, and recovery
+
+## Invalid characters
+@
+$
+~
+&
+!
+=
+
+## Standalone + and - (no digit or duplicate follows)
++a
+-b
++
+-
+
+## Invalid identifier starts (lowercase not allowed)
+count
+myVariable
+xValue
+
+## Identifier exceeding 31 characters
+Abcdefghijklmnopqrstuvwxyz012345
+
+## Single # (not a valid comment start)
+#
+# not a comment
+
+## Float with too many decimal digits (>6)
+1.1234567
+3.12345678
+
+## Dots and random symbols
+.
+..
+...
+
+## Valid tokens between errors to test recovery
+42 @ Count ++ $ true

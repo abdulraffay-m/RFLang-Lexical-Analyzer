@@ -1,0 +1,25 @@
+## Test 3: String/Char with Escapes
+## Our scanner handles 7 token types only (no strings/chars).
+## These inputs test how the scanner handles unrecognized constructs.
+## Strings and chars should produce ERROR tokens.
+
+## Double-quoted strings (not in our grammar)
+"hello world"
+"escaped \"quote\""
+"line\nbreak"
+"tab\there"
+
+## Single-quoted chars (not in our grammar)
+'a'
+'b'
+'\n'
+'\t'
+
+## Mixed with valid tokens
+Count "hello" true
+42 'x' ++
+(false;"test")
+
+## Edge: quote characters standalone
+"
+'
